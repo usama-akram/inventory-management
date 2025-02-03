@@ -1,62 +1,209 @@
-# NestJS Controller Test Suite
+# Inventory Management API
 
-This repository contains test cases for a NestJS application controller using Jest. The test suite validates the functionality of the following endpoints:
+This project is a simple **Inventory Management API** built using **Express.js** and **Sequelize** to interact with a **MySQL** database. The API allows users to manage products, update stock levels, place orders, and reserve stock, among other functionalities.
 
-- `GET /stock-levels/:productId`
-- `POST /update-stock`
-- `POST /order-placed`
-- `POST /reserve-stock`
-
----
-
-## Project Structure
-
-### Files
-
-- **`app.controller.ts`**: Contains the controller methods for handling requests.
-- **`app.controller.spec.ts`**: Jest test file for `AppController`.
-- **`app.service.ts`**: Service methods that handle business logic.
-- **`dto/`**: Folder containing Data Transfer Objects (DTOs) used for request validation.
-- **`product.entity.ts`**: Entity representing a product in the database.
-
-### Endpoints
-
-1. **`GET /stock-levels/:productId`**
-   - Fetches the stock levels for a given product.
-   - Returns a `Product` object.
-
-2. **`POST /update-stock`**
-   - Updates the stock levels of a product based on the provided data.
-   - Accepts a `UpdateStockDto` object in the request body.
-   - Returns a success message.
-
-3. **`POST /order-placed`**
-   - Handles an order placement event.
-   - Accepts an `OrderPlacedDto` object in the request body.
-   - Returns a confirmation message.
-
-4. **`POST /reserve-stock`**
-   - Reserves stock for an order.
-   - Accepts a `ReserveStockDto` object in the request body.
-   - Returns a success message.
+### Table of Contents
+- [Project Overview](#project-overview)
+- [Technologies Used](#technologies-used)
+- [API Endpoints](#api-endpoints)
+  - [GET /products](#get-products)
+  - [POST /create-product](#create-product)
+  - [GET /stock-levels/:productId](#get-stock-levels)
+  - [POST /update-stocks/:productId](#update-stocks)
+  - [POST /order-placed/:productId](#order-placed)
+  - [POST /reserve-stock/:productId](#reserve-stock)
+- [Project Setup](#project-setup)
+  - [Install Dependencies](#install-dependencies)
+  - [Set Up Database](#set-up-database)
+  - [Run the Application](#run-the-application)
+- [Testing](#testing)
+- [License](#license)
 
 ---
 
-## Prerequisites
+## Project Overview
 
-Ensure the following are installed:
+This API is designed to manage products in an inventory system, providing endpoints for:
+- Fetching a list of products.
+- Creating new products.
+- Updating stock levels for products.
+- Handling order placements and stock reservations.
 
-- [Node.js](https://nodejs.org/): Version 14 or above.
-- [NestJS CLI](https://nestjs.com/): For running and managing the application.
-- [Jest](https://jestjs.io/): For running the test suite.
+The project follows a **MVC (Model-View-Controller)** pattern with the following structure:
+- **Models**: Represents the database schema and relationships (Sequelize).
+- **Controllers**: Handles incoming requests and business logic.
+- **Services**: Contains the business logic to interact with the models.
+- **Routes**: Defines the API endpoints and maps them to controller functions.
 
-Install project dependencies:
+---
 
-```bash
-npm install
+## Technologies Used
+
+- **Node.js**: JavaScript runtime for building the server-side application.
+- **Express.js**: Web framework for Node.js to handle routing and middleware.
+- **Sequelize**: ORM for interacting with a MySQL database.
+- **MySQL**: Relational database to store inventory, orders, and reservation data.
+- **Jest**: Testing framework for writing unit and integration tests.
+- **ESLint**: Linter for ensuring code quality.
+- **dotenv**: Loads environment variables from a `.env` file for configuration.
+
+---
+
+## API Endpoints
+
+### `GET /products`
+Fetches a list of all products in the inventory.
+
+**Response**:
+```json
+{
+  "statusCode": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "Product 1",
+      "category": "Electronics",
+      "price": 100,
+      "stocks": 50
+    }
+  ]
+}
 ```
 
----
+
+### `POST /create-product`
+Creates a new product in the inventory. The request body must include name, category, price, and stocks.
+
+**Request**:
+```json
+{
+  "name": "New Product",
+  "category": "Electronics",
+  "price": 200,
+  "stocks": 100
+}
+```
+**Response**:
+```json
+{
+  "message": "success",
+  "data": {
+    "name": "New Product",
+    "category": "Electronics",
+    "price": 200,
+    "stocks": 100
+  }
+}
+
+```
+
+
+
+### `GET /stock-levels/:productId`
+Fetches the current stock levels for a specific product by its ID.
+
+**Response**:
+```json
+{
+  "message": "success",
+  "data": {
+    "product": {
+      "id": 1,
+      "name": "Product 1",
+      "category": "Electronics",
+      "price": 100,
+      "stocks": 50
+    }
+  }
+}
+
+```
+
+
+
+### `POST /update-stocks/:productId`
+Updates the stock levels for a specific product.
+
+**Request**:
+```json
+{
+  "stocks": 60
+}
+```
+
+**Response**:
+```json
+{
+  "message": "success",
+  "data": {
+    "id": 1,
+    "name": "Product 1",
+    "category": "Electronics",
+    "price": 100,
+    "stocks": 60
+  }
+}
+```
+
+
+
+### `POST /order-placed/:productId`
+Places an order for a specific product, updating the stock level.
+
+**Request**:
+```json
+{
+  "quantity": 10
+}
+```
+**Response**:
+```json
+{
+  "message": "success",
+  "data": {
+    "quantity": 10,
+    "productId": 1
+  }
+}
+```
+
+
+### `POST /reserve-stock/:productId`
+Reserves stock for a specific product.
+
+**Request**:
+```json
+{
+  "quantity": 5
+}
+```
+
+**Response**:
+```json
+{
+  "message": "success",
+  "data": {
+    "quantity": 5,
+    "productId": 1
+  }
+}
+```
+## Project Setup
+
+
+Clone the repository and navigate to the project directory:
+```bash
+git clone https://github.com/your-username/inventory-management-api.git
+cd inventory-management-api
+```
+
+### Install Dependencies
+Install the necessary dependencies:
+
+```bash 
+npm install
+```
 
 ## Running Tests
 
@@ -76,75 +223,6 @@ The tests for the controller are located in `app.controller.spec.ts`. To run the
    ```bash
    npm run test:cov
    ```
-
----
-
-## Test Details
-
-### Mocking
-The `AppService` methods are mocked using `jest.fn()` to isolate the controller logic. This ensures that the tests focus solely on the controller's functionality.
-
-### Assertions
-Each test case:
-- Verifies the method calls with the correct arguments.
-- Confirms the returned values match the expected results.
-
-### DTO Validation
-The test suite includes DTOs for validating incoming request payloads, ensuring that data consistency is maintained.
-
----
-
-## Example Test Cases
-
-### `GET /stock-levels/:productId`
-Fetches the stock levels for a given product.
-
-**Test Implementation:**
-```typescript
-it('should return the product stocks', async () => {
-  const mockProduct: Product = { id: 1, name: 'Sample Product', quantity: 100 };
-  jest.spyOn(appService, 'productStocks').mockResolvedValue(mockProduct);
-
-  const result = await appController.getProductStocks('1');
-  expect(result).toEqual(mockProduct);
-  expect(appService.productStocks).toHaveBeenCalledWith('1');
-});
-```
-
-### `POST /update-stock`
-Updates product stock levels and returns a success message.
-
-**Test Implementation:**
-```typescript
-it('should update product stocks and return a success message', async () => {
-  const updateStockDto: UpdateStockDto = {
-    eventType: 'stockUpdate',
-    productId: '1',
-    quantity: 10,
-    timestamp: '2025-01-18T12:00:00Z',
-  };
-
-  jest.spyOn(appService, 'updateStocks').mockResolvedValue('Stock updated successfully');
-
-  const result = await appController.updateProductStocks(updateStockDto);
-  expect(result).toBe('Stock updated successfully');
-  expect(appService.updateStocks).toHaveBeenCalledWith(updateStockDto);
-});
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-1. **Validation Errors:** Ensure the global validation pipe is enabled in `main.ts`.
-   ```typescript
-   app.useGlobalPipes(new ValidationPipe());
-   ```
-
-2. **Mock Implementation Issues:** Check that the mocked methods in the test file align with the service method signatures.
-
-3. **Entity Metadata Errors:** Ensure all entities are properly imported in `TypeOrmModule`.
 
 ---
 
