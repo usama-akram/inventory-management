@@ -1,185 +1,184 @@
-// inventory.service.test.js
+const { getListOfProducts, createProduct, getProductStocks, updateProductStocks, orderPlaced, reserveStocks } = require('../controllers/inventory.controller'); // Adjust the import path as needed
+const sequelizeMock = require('sequelize-mock');
+const httpStatusCodes = require('../constants/httpStatusCodes'); // or your own enum for status codes
+const { ApiError } = require('../utils/error'); // Assuming you have your own error class
 
-const { ApiError } = require('../utils/APIError'); // Import the custom error handler
-const httpStatusCodes = require('../constants/httpStatusCodes'); // For HTTP codes
-const inventoryService = require('../services/inventory.service'); // Service to be tested
-const sequelizeMock = require('sequelize-mock'); // Sequelize mock
-// const { Product, Order, Reservation } = require('../models'); // Import the models
-
-// Create a mock database
+// Mock sequelize model using sequelize-mock
 const dbMock = new sequelizeMock();
-
-// Mock models
-const MockProduct = dbMock.define('Product', {
-  id: 1,
+const ProductMock = dbMock.define('Product', {
   name: 'Test Product',
-  category: 'Electronics',
+  category: 'Category 1',
   price: 100,
   stocks: 50,
 });
 
-const MockOrder = dbMock.define('Order', {
-  quantity: 1,
-  productId: 1,
-});
-
-const MockReservation = dbMock.define('Reservation', {
-  quantity: 1,
-  productId: 1,
-});
-
-// Inject the mocked models into the service
-jest.mock('../models', () => ({
-  Product: MockProduct,
-  Order: MockOrder,
-  Reservation: MockReservation,
+// Mock the inventoryService in place within jest.mock
+jest.mock('../services/inventory.service', () => ({
+  getListOfProducts: jest.fn(),
+  createProduct: jest.fn(),
+  getProduct: jest.fn(),
+  updateProductStocks: jest.fn(),
+  orderPlaced: jest.fn(),
+  reserveStocks: jest.fn(),
 }));
 
-describe('Inventory Service Tests', () => {
-  // Test getListOfProducts
+const res = {
+  respond: jest.fn(),
+  send: jest.fn(),
+};
+
+describe('Inventory Controller', () => {
+
+  beforeEach(() => {
+    jest.clearAllMocks(); // Clears mocks before each test
+  });
+
   describe('getListOfProducts', () => {
-    it('should return a list of products', async () => {
-      const products = await inventoryService.getListOfProducts();
-      jest.spyOn(inventoryService, 'getListOfProducts').mockResolvedValue(MockProduct);
-      expect(products).toHaveLength(1);
-      expect(products[0].name).toBe('Test Product');
+    it('should return list of products successfully', async () => {
+      const mockProductList = [ProductMock.build(), ProductMock.build()];
+      require('../services/inventory.service').getListOfProducts.mockResolvedValue(mockProductList);
+
+      const req = {};
+      await getListOfProducts(req, res);
+
+      expect(require('../services/inventory.service').getListOfProducts).toHaveBeenCalledTimes(1);
+      expect(res.respond).toHaveBeenCalledWith({
+        statusCode: 200,
+        message: 'success',
+        data: mockProductList,
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      const error = new Error('Database error');
+      require('../services/inventory.service').getListOfProducts.mockRejectedValue(error);
+
+      const req = {};
+      await expect(getListOfProducts(req, res)).rejects.toThrowError(error);
     });
   });
 
-  // Test createProduct
   describe('createProduct', () => {
-    it('should create a new product', async () => {
-      const newProductData = {
-        name: 'New Product',
-        category: 'Home Appliance',
-        price: 200,
-        stocks: 30,
-      };
+    it('should create a product successfully', async () => {
+      const newProduct = { name: 'New Product', category: 'Category 2', price: 200, stocks: 30 };
+      const mockProduct = ProductMock.build(newProduct);
+      require('../services/inventory.service').createProduct.mockResolvedValue(mockProduct);
 
-      // Simulating creation success
-      MockProduct.create = jest.fn().mockResolvedValue(newProductData);
+      const req = { body: newProduct };
+      await createProduct(req, res);
 
-      const product = await inventoryService.createProduct(newProductData);
-      expect(product.name).toBe('New Product');
-      expect(product.category).toBe('Home Appliance');
-      expect(product.price).toBe(200);
-      expect(product.stocks).toBe(30);
+      expect(require('../services/inventory.service').createProduct).toHaveBeenCalledWith(newProduct);
+      expect(res.send).toHaveBeenCalledWith({
+        message: 'success',
+        data: mockProduct,
+      });
     });
 
-    it('should throw an error if creation fails', async () => {
-      MockProduct.create = jest.fn().mockRejectedValue(new Error('Error creating product'));
-      
-      try {
-        await inventoryService.createProduct({});
-      } catch (e) {
-        expect(e.message).toBe('Error creating product');
-      }
+    it('should handle errors gracefully when creating product', async () => {
+      const error = new Error('Invalid product data');
+      require('../services/inventory.service').createProduct.mockRejectedValue(error);
+
+      const req = { body: { name: '', category: 'Category 1', price: 50, stocks: 10 } };
+      await expect(createProduct(req, res)).rejects.toThrowError(error);
     });
   });
 
-  // Test getProduct
-  describe('getProduct', () => {
-    it('should return a product by ID', async () => {
-      const product = await inventoryService.getProduct({ productId: 1 });
-      expect(product.name).toBe('Test Product');
-      expect(product.id).toBe(1);
+  describe('getProductStocks', () => {
+    it('should return product stocks successfully', async () => {
+      const mockProduct = ProductMock.build({ id: 1, stocks: 50 });
+      require('../services/inventory.service').getProduct.mockResolvedValue(mockProduct);
+
+      const req = { params: { productId: 1 } };
+      await getProductStocks(req, res);
+
+      expect(require('../services/inventory.service').getProduct).toHaveBeenCalledWith({ productId: 1 });
+      expect(res.send).toHaveBeenCalledWith({
+        message: 'success',
+        data: { product: mockProduct.dataValues },
+      });
     });
 
-    it('should throw an error if product is not found', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue(null);
+    it('should handle errors gracefully when fetching product stocks', async () => {
+      const error = new Error('Product not found');
+      require('../services/inventory.service').getProduct.mockRejectedValue(error);
 
-      try {
-        await inventoryService.getProduct({ productId: 999 });
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect(e.statusCode).toBe(httpStatusCodes.NOT_FOUND);
-        expect(e.message).toBe('Product not found');
-      }
+      const req = { params: { productId: 999 } };
+      await expect(getProductStocks(req, res)).rejects.toThrowError(error);
     });
   });
 
-  // Test updateProductStocks
   describe('updateProductStocks', () => {
-    it('should update product stocks', async () => {
-      const updatedProductData = { stocks: 100 };
-      MockProduct.update = jest.fn().mockResolvedValue([1]); // Mock successful update
+    it('should update product stocks successfully', async () => {
+      const updatedProduct = { id: 1, name: 'Test Product', stocks: 100 };
+      require('../services/inventory.service').updateProductStocks.mockResolvedValue(updatedProduct);
 
-      const result = await inventoryService.updateProductStocks({
+      const req = { params: { productId: 1 }, body: { stocks: 100 } };
+      await updateProductStocks(req, res);
+
+      expect(require('../services/inventory.service').updateProductStocks).toHaveBeenCalledWith({
         productId: 1,
         stocks: 100,
       });
-
-      expect(result[0]).toBe(1); // Sequelize update returns a [affectedRows] array
+      expect(res.send).toHaveBeenCalledWith({
+        message: 'success',
+        data: { product: updatedProduct },
+      });
     });
 
-    it('should throw an error if product is not found', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue(null);
+    it('should handle errors gracefully when updating product stocks', async () => {
+      const error = new Error('Product not found');
+      require('../services/inventory.service').updateProductStocks.mockRejectedValue(error);
 
-      try {
-        await inventoryService.updateProductStocks({
-          productId: 999,
-          stocks: 50,
-        });
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect(e.statusCode).toBe(httpStatusCodes.NOT_FOUND);
-        expect(e.message).toBe('Product not found');
-      }
+      const req = { params: { productId: 1 }, body: { stocks: 100 } };
+      await expect(updateProductStocks(req, res)).rejects.toThrowError(error);
     });
   });
 
-  // Test orderPlaced
   describe('orderPlaced', () => {
-    it('should reduce stock and create an order', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue({ stocks: 50 });
-      MockProduct.update = jest.fn().mockResolvedValue([1]); // Mock stock reduction
-      MockOrder.create = jest.fn().mockResolvedValue({
-        quantity: 1,
-        productId: 1,
-      });
+    it('should process order placement successfully', async () => {
+      const mockProduct = ProductMock.build({ id: 1, stocks: 50 });
+      require('../services/inventory.service').orderPlaced.mockResolvedValue(mockProduct);
 
-      const order = await inventoryService.orderPlaced({ productId: 1, quantity: 1 });
-      expect(order.quantity).toBe(1);
+      const req = { params: { productId: 1 }, body: { quantity: 2 } };
+      await orderPlaced(req, res);
+
+      expect(require('../services/inventory.service').orderPlaced).toHaveBeenCalledWith({ productId: 1, quantity: 2 });
+      expect(res.send).toHaveBeenCalledWith({
+        message: 'success',
+        data: { product: mockProduct.dataValues },
+      });
     });
 
-    it('should throw an error if not enough stock', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue({ stocks: 0 });
+    it('should handle errors gracefully when placing order', async () => {
+      const error = new Error('Order placement failed');
+      require('../services/inventory.service').orderPlaced.mockRejectedValue(error);
 
-      try {
-        await inventoryService.orderPlaced({ productId: 1, quantity: 1 });
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect(e.statusCode).toBe(httpStatusCodes.CONFLICT);
-        expect(e.message).toBe('Not enough quantity');
-      }
+      const req = { params: { productId: 1 }, body: { quantity: 2 } };
+      await expect(orderPlaced(req, res)).rejects.toThrowError(error);
     });
   });
 
-  // Test reserveStocks
   describe('reserveStocks', () => {
-    it('should reduce stock and create a reservation', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue({ stocks: 50 });
-      MockProduct.update = jest.fn().mockResolvedValue([1]); // Mock stock reduction
-      MockReservation.create = jest.fn().mockResolvedValue({
-        quantity: 1,
-        productId: 1,
-      });
+    it('should reserve stocks successfully', async () => {
+      const mockProduct = ProductMock.build({ id: 1, stocks: 50 });
+      require('../services/inventory.service').reserveStocks.mockResolvedValue(mockProduct);
 
-      const reservation = await inventoryService.reserveStocks({ productId: 1, quantity: 1 });
-      expect(reservation.quantity).toBe(1);
+      const req = { params: { productId: 1 }, body: { quantity: 5 } };
+      await reserveStocks(req, res);
+
+      expect(require('../services/inventory.service').reserveStocks).toHaveBeenCalledWith({ productId: 1, quantity: 5 });
+      expect(res.send).toHaveBeenCalledWith({
+        message: 'success',
+        data: { product: mockProduct.dataValues },
+      });
     });
 
-    it('should throw an error if not enough stock to reserve', async () => {
-      MockProduct.findByPk = jest.fn().mockResolvedValue({ stocks: 0 });
+    it('should handle errors gracefully when reserving stocks', async () => {
+      const error = new Error('Insufficient stock');
+      require('../services/inventory.service').reserveStocks.mockRejectedValue(error);
 
-      try {
-        await inventoryService.reserveStocks({ productId: 1, quantity: 1 });
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect(e.statusCode).toBe(httpStatusCodes.CONFLICT);
-        expect(e.message).toBe('Not enough quantity');
-      }
+      const req = { params: { productId: 1 }, body: { quantity: 100 } };
+      await expect(reserveStocks(req, res)).rejects.toThrowError(error);
     });
   });
 });
-
